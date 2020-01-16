@@ -454,19 +454,27 @@ class UserData(object):
 		"""dict: ``dicts`` comprised of due date information for the active 
 		user's projects organized by job number.
 
-		Nested keys: 'expired' (past due), 'today' (due today),	and 
-		'approaching' (due within 2 days). Nested values (``int``): The	number 
-		of ``Projects`` whose due dates fall within the key category.
+		Nested keys: 
+		'expired' (past due), 'today' (due today), and 'approaching' 
+		(due within 2 days). 
+		
+		Nested values (``int``): 
+		The number of ``Projects`` whose due dates fall within the key category.
 
 		"""
-		if self.my_level == 'Technician':
-			return JobIO.jobs_at_a_glance(self.my_job_data)
+		# LEAD was introduced to provide the drafting lead with a glance at
+		# all department projects, not just his/her own. LEAD is still 
+		# classified with a user level of 'Technician' so that he or she can be
+		# assigned projects, which is an option 'Supervisor' users do not have.
+		LEAD = 'Jaye'
 
-		elif self.my_level == 'Supervisor':
-			# Supervisors are linked with all jobs.
+		if self.my_level == 'Supervisor' or self.my_name == LEAD:
+			# Supervisors and leads are linked with all jobs.
 			return JobIO.jobs_at_a_glance(
 				JobIO.sort_project_data(JobIO.existing_projects())
 			)
+		elif self.my_level == 'Technician':
+			return JobIO.jobs_at_a_glance(self.my_job_data)
 
 	def get_users_name(self, username):
 		"""Get the name associated with a given username.

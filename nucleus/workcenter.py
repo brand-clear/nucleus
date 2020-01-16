@@ -7,7 +7,7 @@ from errors import ColumnError, InvalidDatesError, EmptyModelError
 __author__ = 'Brandon McCleary'
 
 
-class WorkCenterManipulations:
+class WorkCenterManipulations(object):
 	"""
 	Provides ``DataFrame`` manipulation functions for work center spreadsheets 
 	that are exported from AX2009 Live.
@@ -37,6 +37,7 @@ class WorkCenterManipulations:
 		if len(missing_cols) > 0:
 			raise ColumnError(missing_cols)
 
+
 	@staticmethod
 	def drop_extra_cols(df, reqd_cols):
 		"""Remove non-essential columns from a ``DataFrame``.
@@ -50,6 +51,7 @@ class WorkCenterManipulations:
 		for col in df.columns:
 			if col not in reqd_cols:
 				df.drop(col, axis=1, inplace=True)
+
 
 	@staticmethod
 	def drop_keyword_condition(df, target_col, keyword, condition='mismatch'):
@@ -88,6 +90,7 @@ class WorkCenterManipulations:
 		if len(df.index) == 0:
 			raise EmptyModelError()
 
+
 	@staticmethod
 	def format_date_col(df, target_col, dformat='%m/%d/%Y'):
 		"""Modify the date format of a ``DataFrame`` column.
@@ -120,6 +123,7 @@ class WorkCenterManipulations:
 		# Modify contents
 		df[target_col] = df[target_col].apply(lambda x: x.strftime(dformat))
 
+
 	@staticmethod
 	def jobs(df):
 		"""Get all unique job numbers from a ``DataFrame``.
@@ -134,6 +138,7 @@ class WorkCenterManipulations:
 		
 		"""
 		return {row['WC line alias'][:6] for index, row in df.iterrows()}
+
 
 	@staticmethod
 	def dict_of_df_subs(df, target_col, keywords):
@@ -159,6 +164,7 @@ class WorkCenterManipulations:
 			subsets[item] = df[df[target_col].str.contains(item)]
 		return subsets
 
+
 	@staticmethod
 	def df_sub_from_indices(df, indices):
 		"""Get a subsampled ``DataFrame`` an index list.
@@ -170,6 +176,7 @@ class WorkCenterManipulations:
 
 		"""
 		return df[df.index.isin(indices)]
+
 
 	@staticmethod
 	def format_work_instructions(row):
