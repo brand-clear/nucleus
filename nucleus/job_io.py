@@ -16,7 +16,7 @@ __author__ = 'Brandon McCleary'
 
 class JobIO:
 	"""
-	Input/output methods designed to support the manipulation of ``Jobs``.
+	I/O methods designed to support the manipulation of Job objects.
 
 	See Also
 	--------
@@ -31,18 +31,11 @@ class JobIO:
 
 	@staticmethod
 	def job_exists(job_num):
-		"""Verify the existence of a job number's files.
+		"""Returns True if job files were found.
 
 		Parameters
 		----------
 		job_num : str
-			A 6-digit integer that is associated with a collection of work 
-			orders.
-
-		Returns
-		-------
-		True
-			If files pertaining to `job_num` were found.
 		
 		Raises
 		------
@@ -59,13 +52,11 @@ class JobIO:
 
 	@staticmethod
 	def init_files(job_num, workspace):
-		"""Create new ``Job`` files.
+		"""Create application files for a new job.
 
 		Parameters
 		----------
 		job_num : str
-			A 6-digit integer that is associated with a collection of work 
-			orders.
 
 		workspace : str
 			Absolute path to the toplevel directory that stores project data.
@@ -94,15 +85,13 @@ class JobIO:
 
 	@staticmethod
 	def save(job_num, job):
-		"""Serialize a ``Job`` to file.
+		"""Serialize a Job object.
 
 		Parameters
 		----------
 		job_num : str
-			The 6-digit integer that is associated with the ``Job``.
 
 		job : Job
-			A collection of work orders associated with `job_num`.
 
 		Returns
 		-------
@@ -125,22 +114,17 @@ class JobIO:
 
 	@staticmethod
 	def get(job_num):
-		"""Get a serialized ``Job``.
+		"""Returns a serialized Job object.
 
 		Parameters
 		----------
 		job_num : str
-			The 6-digit integer that is associated with the ``Job``.
-
-		Returns
-		-------
-		job : Job
-			The collection of work orders associated with `job_num`.
 
 		Raises
 		------
 		IOError
 			If no such file or directory.
+
 		EOFError
 			If file is empty.
 
@@ -155,24 +139,19 @@ class JobIO:
 
 	@staticmethod
 	def job_and_lock(job_num):
-		"""Retrieve the objects required to perform work on a ``Job``.
-
-		Each ``Job`` has a corresponding ``GateKeeper`` that controls access to
-		the data file which contains ``Job``.
+		"""Retrieve the objects required to perform work on a job.
 		
-		Attributes
+		Parameters
 		----------
 		job_num : str
-			The 6-digit integer that is associated with the ``Job``.
 
 		Returns
 		-------
 		job : Job
-			A serialized collection of work orders associated with `job_num`.
 
 		lock : GateKeeper
-			Restricts access to `job` to a single active user. Modifications to
-			`job` must be made only while the active user has ownership.
+			Restricts job access to a single active user. Modifications to the 
+			job must be made only while the active user has ownership.
 
 		Raises
 		------
@@ -183,7 +162,7 @@ class JobIO:
 
 		Notes
 		-----
-		`lock` is returned in the 'locked' state, which signifies ownership.
+		`lock` is returned in the locked state, which signifies ownership.
 
 		"""
 		if JobIO.job_exists(job_num):
@@ -202,7 +181,7 @@ class JobIO:
 
 	@staticmethod
 	def active_job_nums():
-		"""Returns a ``set`` containing all active job numbers.
+		"""Returns a set of all active job numbers.
 
 		Raises
 		------
@@ -216,24 +195,17 @@ class JobIO:
 	def active_job_temp_files():
 		"""Copy active job files and paste into temp directory.
 
-		The temp file extensions assume the active username so that there are no 
-		conflicts when multiple users call this function. If a new temp file has 
-		the same signature as an existing temp file, the existing temp file is 
-		overridden.
-
 		Returns
 		-------
 		temp_filename_list : list
 			The filenames of all active job temp files.
 
-		Raises
-		------
-		OSError
-			If the system cannot find the path specified.
-
-		See Also
-		--------
-		JobIO.clear_temp_files
+		Notes
+		-----
+		The temp file extensions assume the active username so that there are no 
+		conflicts when multiple users call this function. If a new temp file has 
+		the same signature as an existing temp file, the existing temp file is 
+		overridden.
 
 		"""
 		temp_filename_list = []
@@ -242,10 +214,15 @@ class JobIO:
 			original = job + '.nuke'
 			temp_file = job + '.%s' % user
 			temp_filename_list.append(temp_file)
-			shutil.copy(
-				os.path.join(Path.JOBS, original), 
-				os.path.join(Path.TEMP, temp_file)
-			)
+			try:
+				shutil.copy(
+					os.path.join(Path.JOBS, original), 
+					os.path.join(Path.TEMP, temp_file)
+				)
+			except OSError:
+				# Ignore issues raised for poor network connectivity and 
+				# race conditions that arise from jobs being completed.
+				pass
 		return temp_filename_list
 
 	@staticmethod
@@ -257,10 +234,6 @@ class JobIO:
 		file_list : list
 			The filenames of all temp files.
 
-		See Also
-		--------
-		JobIO.active_job_temp_files
-
 		"""
 		[os.remove(os.path.join(Path.TEMP, temp_file)) for temp_file in file_list]
 
@@ -271,47 +244,43 @@ class JobIO:
 		Returns
 		-------
 		existing_projects : dict
-			``Projects`` organized by their associated drawing numbers.
-
-		Raises
-		------
-		OSError
-			If the system cannot find the path specified.
+			Project objects organized by their associated drawing numbers.
 
 		"""
 		existing_projects = {}
 		active_job_temp_files = JobIO.active_job_temp_files()
 		for filename in active_job_temp_files:
-			with open(os.path.join(Path.TEMP, filename), 'rb') as job:
-				temp_job = pickle.load(job)
-				temp_proj = temp_job.projects
-				for project in temp_proj.keys():
-					existing_projects[project] = temp_proj[project]
+			try:
+				with open(os.path.join(Path.TEMP, filename), 'rb') as job:
+					temp_job = pickle.load(job)
+					temp_proj = temp_job.projects
+					for project in temp_proj.keys():
+						existing_projects[project] = temp_proj[project]
+			except OSError:
+				# Ignore issues raised for poor network connectivity and 
+				# race conditions that arise from jobs being completed.
+				pass
 		JobIO.clear_temp_files(active_job_temp_files)
 		return existing_projects
 
 	@staticmethod
 	def sort_project_data(project_dict):
-		"""Organize a dictionary of ``Projects`` by job number.
+		"""Organize a dictionary of Project objects by job number.
 
 		Parameters
 		----------
 		project_dict : dict
-			A collection of ``Projects`` organized by drawing number.
+			A collection of Project objects organized by drawing number.
 
 		Returns
 		-------
 		job_dict : dict
-			``lists`` of ``Projects`` organized by job number.
+			Contains job number keys and lists of Project objects as values.
 
 		Notes
 		-----
-		The ``Projects`` lose their corresponding drawing numbers during
-		the transfer to `job_dict`.
-
-		See Also
-		--------
-		JobIO.existing_projects
+		The Project objects lose their corresponding drawing numbers during
+		the transfer to job_dict.
 
 		"""
 		job_dict = {}
@@ -334,19 +303,16 @@ class JobIO:
 		Parameters
 		----------
 		job_dict : dict
-			``lists`` of ``Projects`` organized by job number.
+			See JobIO.sort_project_data.
 
 		Returns
 		-------
 		jobs : dict
-			``dicts`` comprised of project due date information and organized by
-			job number. Nested keys: 'expired' (past due), 'today' (due today),
-			and 'approaching' (due within 2 days). Nested values (``int``): The
-			number of ``Projects`` whose due dates fall within the key category.
-
-		See Also
-		--------
-		JobIO.sort_project_data
+			A dictionary of dictionaries comprised of project due date 
+			information and organized by job number. Nested keys include
+			'expired' (past due), 'today' (due today), and 'approaching' (due
+			within 2 days). Nested values are the integer number of Project
+			objects whose due dates fall within the key category.
 
 		"""
 		jobs = {}
@@ -360,7 +326,7 @@ class JobIO:
 			today = 0
 			approaching = 0
 			for project in job_dict[job]:
-				if project.status != completed:  # Ignore completed projects.
+				if project.status != completed:  # Ignore completed projects
 					due_date = datetime.strptime(project.due_date, '%m/%d/%Y')
 					delta = (due_date - now).days
 					if delta < 0:
@@ -379,17 +345,17 @@ class JobIO:
 
 	@staticmethod
 	def drawing_nums_from_job(job):
-		"""Return the ``list`` of drawing numbers in a ``Job``."""
+		"""Return the list of drawing numbers in a Job object."""
 		return [proj for proj in job.projects.keys() if JobIO.is_dwg_num(proj)]
 
 	@staticmethod
 	def drawing_nums_from_list(items):
-		"""Return the ``list`` of drawing numbers from `items` (``list``)."""
+		"""Return the list of drawing numbers found in a list of items."""
 		return [item for item in items if JobIO.is_dwg_num(item)]
 
 	@staticmethod
 	def is_dwg_num(text):
-		"""Returns True if `text` is in the drawing number format."""
+		"""Returns True if text string is in the drawing number format."""
 		return text.count('-') == 3
 
 	@staticmethod
@@ -399,8 +365,6 @@ class JobIO:
 		Parameters
 		----------
 		job_num : str
-			A 6-digit integer that is associated with a collection of work 
-			orders.
 
 		Returns
 		-------
@@ -428,7 +392,6 @@ class JobIO:
 		Parameters
 		----------
 		job : Job
-			A collection of work orders.
 
 		Returns
 		-------
@@ -437,17 +400,41 @@ class JobIO:
 			found, 'not found' is returned.
 		
 		"""
+		NOT_FOUND_MSG = 'not found'
 		format = WorkOrderConstants.DATE_FORMAT
 		proj_dates = []
-		for proj in job.projects.keys():
-			proj_dates.append(
-				datetime.strptime(job.projects[proj].due_date, format)
-			)
 		try:
-			return datetime.strftime(max(proj_dates), format)
-		except ValueError:
+			for proj in job.projects.keys():
+				proj_dates.append(datetime.strptime(job.projects[proj].due_date, 
+					format))
+		except (AttributeError, ValueError):
 			# proj_dates is an empty list.
-			return 'not found'
+			return NOT_FOUND_MSG
+		else:
+			return datetime.strftime(max(proj_dates), format)
+
+	@staticmethod
+	def move(src, dst_dir):
+		"""Move a file to a different directory.
+
+		Parameters
+		----------
+		src : str
+			Absolute file path.
+		
+		dst_dir : str
+			Absolute path to destination directory.
+
+		Raises
+		------
+		IOError
+			Source file open by another process or file not found.
+
+		"""
+		path, filename = os.path.split(src)
+		dst = os.path.join(dst_dir, filename)
+		shutil.move(src, dst)
+
 
 
 if __name__ == '__main__':

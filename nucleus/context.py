@@ -869,6 +869,7 @@ class AddNoteWorkspace(Workspace):
 			1000, 
 			flat=False
 		)
+		#self._note_te = QtGui.QTextEdit()
 		self._note_te = QtGui.QPlainTextEdit()
 		self.layout.addWidget(self._note_te)
 
@@ -1424,7 +1425,7 @@ class ContextHandler:
 			del projects[p]
 
 	@staticmethod
-	def status(selected_dwg_nums, projects, status, workspace):
+	def status(selected_dwg_nums, projects, status, workspace, log):
 		"""Modify a project's status attribute.
 
 		Parameters
@@ -1441,6 +1442,9 @@ class ContextHandler:
 
 		workspace : str
 			The toplevel project workspace directory.
+
+		log : callable
+			Interface to user log file.
 
 		Notes
 		-----
@@ -1485,6 +1489,7 @@ class ContextHandler:
 			# Check for PDFs that should exist, but don't.
 			missing_pdfs = [i for i in dwgs_nums if i not in moved_dwg_nums]
 			if len(missing_pdfs) != 0:
+				log('%s PDF not moved, there may be others' % missing_pdfs[0])
 				MissingPDFError.show(missing_pdfs)
 
 		for p in selected_dwg_nums:
@@ -1806,4 +1811,4 @@ class ContextHandler:
 
 
 if __name__ == '__main__':
-	print ContextHandler.find_workspace_pdfs('C:\\Vault WorkSpace\\Draft\\OEM\\test\\132068')
+	pass

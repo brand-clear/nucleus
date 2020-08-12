@@ -111,13 +111,12 @@ class Project(object):
 	status : str
 	notes : NoteDict
 		Contains work order documentation as values, and signatures including 
-		the date, time, and author, as keys. The order of key, value pairs in 
-		``NoteDict`` is chronological.
+		the date, time, and author, as keys. The order of key, value pairs is 
+		chronological.
 
 	"""
-	def __init__(
-		self, alias_num, work_instructions, owner, due_date, status='Unassigned'
-		):
+	def __init__(self, alias_num, work_instructions, owner, due_date, 
+			status='Unassigned'):
 		self.alias_num = alias_num
 		self.owner = owner
 		self.due_date = due_date

@@ -143,6 +143,7 @@ class Desk(QtGui.QTabWidget):
 
 		"""
 		if self._has_workspace(job):
+			self._app_data.users.log('opened job %s' % job.job_num)
 			self._folders[job.job_num] = JobFolder(job, lock, self._app_data)
 			self._folders[job.job_num].view.agree_btn.clicked.connect(
 				lambda: self._show_agreement(job.job_num)
@@ -161,6 +162,7 @@ class Desk(QtGui.QTabWidget):
 			except (IOError, SecurityError) as error:
 				ExceptionMessageBox(error).exec_()
 			else:
+				self._app_data.users.log('saved job %s' % folder)
 				self._status.show_save_msg(folder)
 		else:
 			self._status.showMessage(
@@ -241,6 +243,7 @@ class Desk(QtGui.QTabWidget):
 			index = self.folder_index(job_num)
 		self.removeTab(index)
 		del self._folders[job_num]
+		self._app_data.users.log('closed job %s' % job_num)
 
 
 if __name__ == '__main__':

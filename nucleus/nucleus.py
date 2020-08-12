@@ -6,7 +6,9 @@ import getpass
 from os import startfile
 import cPickle as pickle
 from PyQt4 import QtGui, QtCore
+from pywinscript import win
 from pyqtauto import setters
+from sulzer.extract import ProjectsFolderRootError, DestinationError
 from pyqtauto.widgets import ExceptionMessageBox, StatusBar, OrphanMessageBox
 from gatekeeper.gatekeeper import GateKeeper
 from docks import WeekendSignUp, PartLocator, WeekendRoster
@@ -19,16 +21,8 @@ from job_io import JobIO
 from menu import MenuView, NewJobRequest, CompleteJobRequest, AboutDialog
 from admin import GetWorkCenterSource
 from active_projects import ActiveProjectsDialog
-from errors import (
-	WorkspaceError, 
-	JobNumberError, 
-	ExistingJobError, 
-	UnknownError, 
-	JobNotFoundError, 
-	JobInUseError,
-	StartUpError, 
-	PasswordError
-)
+from errors import (WorkspaceError, JobNumberError, ExistingJobError, 
+	UnknownError, JobNotFoundError, JobInUseError, StartUpError, PasswordError)
 
 
 __author__ = 'Brandon McCleary'
@@ -135,25 +129,19 @@ class Nucleus(QtGui.QMainWindow):
 	def set_docks(self):
 		"""Display ``QDockWidgets`` per user registration level."""
 		self.part_locator = PartLocator(Path.PART_LOC_XLSX)
-		self.addDockWidget(
-			QtCore.Qt.RightDockWidgetArea, 
-			self.part_locator.view
-		)
+		self.addDockWidget(QtCore.Qt.RightDockWidgetArea, 
+			self.part_locator.view)
 
 		if self.app_data.users.my_level is None:
 			# User is not registered
 			return
 
 		self.weekend_roster = WeekendRoster(self.app_data.users)
-		self.addDockWidget(
-			QtCore.Qt.RightDockWidgetArea, 
-			self.weekend_roster.view
-		)
+		self.addDockWidget(QtCore.Qt.RightDockWidgetArea, 
+			self.weekend_roster.view)
 		self.weekend_signup = WeekendSignUp(self.app_data.users.my_folder)
-		self.addDockWidget(
-			QtCore.Qt.RightDockWidgetArea, 
-			self.weekend_signup.view
-		)
+		self.addDockWidget(QtCore.Qt.RightDockWidgetArea, 
+			self.weekend_signup.view)
 
 		if self.app_data.users.my_level == 'Technician':
 			self.weekend_roster.view.hide()
@@ -263,6 +251,8 @@ class Nucleus(QtGui.QMainWindow):
 			If `job` files were removed from ``Nucleus``.
 		
 		"""
+		self.app_data.users.log(
+			'initiating a complete job request for %s' % job_num)
 		request = CompleteJobRequest(
 			job_num, 
 			self.app_data.users.supervisor_email_addresses,
@@ -271,18 +261,26 @@ class Nucleus(QtGui.QMainWindow):
 		)
 		try:
 			if not request.approved():
+				self.app_data.users.log(
+					'%s complete job request was not approved' % job_num)
 				return
-		except (JobInUseError, IOError, EOFError) as error:
+		except (JobInUseError, IOError, EOFError, ProjectsFolderRootError, 
+				DestinationError) as error:
+			self.app_data.users.log(error)
 			ExceptionMessageBox(error).exec_()
 		else:
-			self.app_data.users.log(
-				'%s completed, due by %s' % (job_num, JobIO.job_due_date(job))
-			)
-			self.app_data.users.log(
-				'%s drawing count: %d' % (job_num, request.dwg_count)
-			)
-			self.status.showMessage('%s closed successfully.' % job_num)
+			self.status.showMessage('Updating your jobs...')
 			self.desk.refresh_home()
+			try:
+				self.app_data.users.log('%s completed, due by %s' % 
+					(job_num, JobIO.job_due_date(job)))
+			except ValueError:
+				self.app_data.users.log(
+					'%s completed, no due date reference' % job_num)
+
+			self.app_data.users.log('%s drawing count: %d' % 
+				(job_num, request.dwg_count))
+			self.status.showMessage('%s closed successfully.' % job_num)
 			return True
 
 	def is_admin(self):
@@ -305,6 +303,7 @@ class Nucleus(QtGui.QMainWindow):
 			'Password:', 
 			mode=QtGui.QLineEdit.Password
 		)
+		self.app_data.users.log('attempting to log in as admin')
 		if ok:
 			if password == 'respect':
 				return True
@@ -385,5 +384,4 @@ class Nucleus(QtGui.QMainWindow):
 
 
 if __name__ == "__main__":
-
 	EnterNucleusApp()

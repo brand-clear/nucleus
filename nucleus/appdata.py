@@ -87,7 +87,7 @@ class NamingConvention(object):
 
 		Section 1) A part name (4 alpha characters)
 		Section 2) A process name (3 alpha characters)
-		Section 3) Any additional, valuable detail (2-4 alphanumeric characters)
+		Section 3) Any additional, valuable detail (1-4 alphanumeric characters)
 
 	For example:
 
@@ -206,7 +206,7 @@ class NamingConvention(object):
 			if len(text) == 3 and text.isalpha():
 				return True
 		elif convention_type == 'detail':
-			if len(text) >= 2 and len(text) <= 4:
+			if len(text) >= 1 and len(text) <= 4:
 				return True
 
 

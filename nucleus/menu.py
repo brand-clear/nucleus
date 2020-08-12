@@ -1,28 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 import os
+import shutil
 from collections import OrderedDict
 from PyQt4 import QtGui
 from pywinscript.msoffice import send_email
-from pyqtauto.widgets import (
-	MenuBar, 
-	ExceptionMessageBox, 
-	Ask, 
-	Dialog, 
-	ImageButton, 
-	Spacer, 
-	GenericButton
-)
-from sulzer.extract import Extract, DestinationError, ProjectsFolderRootError
+from pyqtauto.widgets import (MenuBar, ExceptionMessageBox, Ask, Dialog, 
+	ImageButton, Spacer, GenericButton)
+from sulzer.extract import Extract
 from work_orders import WorkOrderConstants
 from core import Image, Path
 from job_io import JobIO
-from errors import (
-	JobNumberError, 
-	ExistingJobError, 
-	WorkspaceError, 
-	JobInUseError
-)
+from errors import (JobNumberError, ExistingJobError, WorkspaceError, 
+	JobInUseError)
 
 
 __author__ = 'Brandon McCleary'
@@ -52,57 +42,28 @@ class MenuView(MenuBar):
 		super(MenuView, self).__init__(parent)
 		# File menu
 		self.file_menu = self.add_menu('File')
-		self.new = self.add_action(
-			self.file_menu,
-			Image.NEW_JOB,
-			'New',
-			'Ctrl+N'
-		)
-		self.open = self.add_action(
-			self.file_menu,
-			Image.OPEN,
-			'Open',
-			'Ctrl+O'
-		)
-		self.save = self.add_action(
-			self.file_menu,
-			Image.SAVE,
-			'Save',
-			'Ctrl+S'
-		)
-		self.complete = self.add_action(
-			self.file_menu,
-			Image.COMPLETE,
-			'Complete',
-			'Ctrl+1'
-		)
+		self.new = self.add_action(self.file_menu, Image.NEW_JOB, 'New', 
+			'Ctrl+N')
+		self.open = self.add_action(self.file_menu,	Image.OPEN,	'Open',	
+			'Ctrl+O')
+		self.save = self.add_action(self.file_menu, Image.SAVE, 'Save', 
+			'Ctrl+S')
+		self.complete = self.add_action(self.file_menu, Image.COMPLETE, 
+			'Complete', 'Ctrl+1')
 		self.view_menu = self.add_menu('View')
-		self.active_projects = self.add_action(
-			self.view_menu,
-			Image.ACTIVE,
-			'Active Projects',
-			'Ctrl+2'
-		)
+		self.active_projects = self.add_action(self.view_menu, Image.ACTIVE,
+			'Active Projects', 'Ctrl+2')
+
 		# Admin menu
 		self.admin_menu = self.add_menu('Admin')
-		self.upload_data = self.add_action(
-			self.admin_menu,
-			Image.UPLOAD,
-			'Upload WC Data',
-			'Ctrl+U'
-		)
+		self.upload_data = self.add_action(self.admin_menu, Image.UPLOAD,
+			'Upload WC Data', 'Ctrl+U')
+
 		# About menu
 		self._info_menu = self.add_menu('Info')
-		self.about = self.add_action(
-			self._info_menu,
-			Image.ABOUT,
-			'About',
-		)
-		self.version = self.add_action(
-			self._info_menu,
-			Image.VERSION,
-			'Versions',
-		)
+		self.about = self.add_action(self._info_menu, Image.ABOUT, 'About')
+		self.version = self.add_action(self._info_menu, Image.VERSION, 
+			'Versions')
 
 
 class NewJobRequest(object):
@@ -303,35 +264,25 @@ class ProjectWorkspace:
 
 class CompleteJobRequest(object):
 	"""
-	Handles a request to remove job files from ``Nucleus``.
+	Handles a request to remove job files from Nucleus.
 
 	Parameters
 	----------
 	job_num : str
-		The 6-digit job number.
 
 	recipients : list
 		Email addresses that will receive confirmation email.
 
 	job : Job or None, optional
-		The collection of work orders requesting completion. If ``None``, the 
-		appropriate ``Job`` will be retrieved per `job_num`.
 		
 	lock : GateKeeper, optional
-		Controls read and write access to `job` applicaton files.
+		Controls read and write access to job applicaton files.
 
 	Attributes
 	----------
 	dwg_count : int
-		The number of drawings found in `job`. This value is logged to file if
-		request is approved.
-
-	See Also
-	--------
-	errors.JobInUseError
-	job_io.JobIO
-	work_orders.WorkOrderConstants
-	pywinscript.msoffice
+		The number of drawings found in the job. This value is logged to file if
+		the request is approved.
 
 	"""
 	def __init__(self, job_num, recipients, job=None, lock=None):
@@ -343,7 +294,7 @@ class CompleteJobRequest(object):
 		self.dwg_count = None
 
 	def approved(self):
-		"""Evaluate a complete job request.
+		"""Evaluate the complete job request.
 		
 		Returns
 		-------
@@ -355,26 +306,25 @@ class CompleteJobRequest(object):
 		JobInUseError
 		IOError
 		EOFError
+		ProjectsFolderRootError
+		DestinationError
 
 		"""
-		self._dwg_nums = self._get_dwg_nums()
+		dwg_nums = self._get_dwg_nums()
+		self.dwg_count = len(dwg_nums)
+		pdf_dir = Extract.issued_prints_folder(self._job_num)
+		self._bulk_pdf_transfer(pdf_dir)
+		msg = self._get_document_control_msg(dwg_nums, pdf_dir)
 
-		try:
-			self._msg = self._get_document_control_msg()
-		except DestinationError as error:
-			# Projects folder does not exist
-			ExceptionMessageBox(error).exec_()
-			return
-
-		if Ask('Confirm', self._msg).yes():
-			self._close(self._msg)
+		if Ask('Confirm', msg).yes():
+			self._close(msg)
 			return True
 		else:
 			if not self._retain_ownership:
 				self._lock.unlock()
 
 	def _get_dwg_nums(self):
-		"""Returns the ``list`` of drawing numbers found in `_job`.
+		"""Returns the list of drawing numbers found in the active job.
 		
 		Raises
 		------
@@ -391,12 +341,11 @@ class CompleteJobRequest(object):
 		return JobIO.drawing_nums_from_job(self._job)
 
 	def _incomplete_project_count(self, dwg_nums):
-		"""Count the number of incomplete ``Projects``.
+		"""Count the number of incomplete Project objects.
 
 		Parameters
 		----------
 		dwg_nums : list
-			Drawing numbers.
 
 		Returns
 		-------
@@ -411,12 +360,11 @@ class CompleteJobRequest(object):
 		return count
 
 	def _get_file_count(self, path):
-		"""Count the number of job files in a directory path.
+		"""Count the number of job files in a directory.
 
 		Parameters
 		----------
 		path : str
-			Absolute path to directory.
 
 		Returns
 		-------
@@ -429,33 +377,28 @@ class CompleteJobRequest(object):
 				count += 1
 		return count
 
-	def _get_document_control_msg(self):
+	def _get_document_control_msg(self, dwg_nums, pdf_dir):
 		"""Generate a message that quantifies how many job files exist.
+
+		Parameters
+		----------
+		dwg_nums : list
+		pdf_dir : string
 
 		Returns
 		-------
 		msg : list
 
 		"""
-		self.dwg_count = len(self._dwg_nums)
-		msg = ['Drawings found: %d' % self.dwg_count]
-
-		incomplete = self._incomplete_project_count(self._dwg_nums)
-		msg.append('Drawings not completed: %d' % incomplete)
-
-		pdfs = self._get_file_count(Extract.issued_prints_folder(self._job_num))
-		msg.append('Non-controlled PDF files found: %d' % pdfs)
-
+		incomplete = self._incomplete_project_count(dwg_nums)
+		pdfs = self._get_file_count(pdf_dir)
 		stps = self._get_file_count(Path.QC_MODELS)
-		msg.append('Quality control STEP files found: %d' % stps)
-
-		dxfs_gen = self._get_file_count(Path.DXF_GEN)
-		dxfs_tool = self._get_file_count(Path.DXF_TOOL)
-		dxfs = dxfs_gen + dxfs_tool
-		msg.append('Manufacturing DXF files found: %d' % dxfs)
-		
+		msg = ['Drawings found: %d' % self.dwg_count]
+		msg.append('Drawings not completed: %d' % incomplete)
+		msg.append('Non-controlled PDF files found: %d' % pdfs)
+		msg.append('Quality control STEP files found: %d\n' % stps)
 		msg.append(
-			'\nDo you want to continue completing this job? This cannot be undone.'
+			'Do you want to continue completing this job? This cannot be undone.'
 		)
 		return msg
 
@@ -470,12 +413,22 @@ class CompleteJobRequest(object):
 		"""
 		if JobIO.clear_job_files(self._job_num):
 			msg.append('Yes')
-			send_email(
-				self._to, [], 
-				'%s Completed' % self._job_num, 
-				'<br>'.join(msg), 
-				True
-			)
+			send_email(self._to, [], '%s Completed' % self._job_num, 
+				'<br>'.join(msg), True)
+
+	def _bulk_pdf_transfer(self, dst):
+		"""Move PDF files from job workspace to issued prints folder.
+
+		Parameters
+		----------
+		dst: str
+			Absolute path to the issued prints folder.
+
+		"""
+		for root, dirs, files in os.walk(self._job.workspace):
+			for filename in files:
+				if os.path.splitext(filename)[1] == '.pdf':
+					JobIO.move(os.path.join(root, filename), dst)
 
 
 class AboutDialog(Dialog):

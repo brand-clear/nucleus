@@ -4,21 +4,12 @@ import os
 import sys
 import time
 from PyQt4 import QtGui, QtCore
-from pyqtauto.widgets import (
-	ImageButton, 
-	Workspace, 
-	Dialog, 
-	DialogButtonBox, 
-	ExceptionMessageBox
-)
+from pyqtauto.widgets import (ImageButton, Workspace, Dialog, DialogButtonBox, 
+	ExceptionMessageBox, OrphanMessageBox)
 from pywinscript.msoffice import send_email
 from pywinscript.winprint import Printer
-from sulzer.extract import (
-	Extract, 
-	ProjectsFolderRootError, 
-	DestinationError, 
-	PicturesFolderRootError
-)
+from sulzer.extract import (Extract, ProjectsFolderRootError, DestinationError, 
+	PicturesFolderRootError)
 from project_view import ProjectTable, NoteBox
 from core import Image, Path
 from context import ProjectContextMenu
@@ -139,74 +130,36 @@ class JobFolder(object):
 		# Selected action text
 		context_action = str(self.view.table.sender().text())
 		if context == 'Alias':
-			handler.alias_num(
-				self._selected_dwg_nums,
-				self._projects, 
-				context_action
-			)
+			handler.alias_num(self._selected_dwg_nums, self._projects, 
+				context_action)
 		elif context == 'Owners':
-			handler.owner(
-				self._selected_dwg_nums,
-				self._projects,
-				context_action
-			)
+			handler.owner(self._selected_dwg_nums, self._projects, 
+				context_action)
 		elif context == 'Due Dates':
-			handler.due_date(
-				self._selected_dwg_nums, 
-				self._projects,
-				context_action
-			)
+			handler.due_date(self._selected_dwg_nums, self._projects,
+				context_action)
 		elif context == 'Status':
-			handler.status(
-				self._selected_dwg_nums,
-				self._projects,
-				context_action,
-				self._job.workspace
-			)
+			handler.status(self._selected_dwg_nums, self._projects,
+				context_action, self._job.workspace, self._users.log)
 		elif context_action == 'New':
-			handler.new_project(
-				self._job,
-				self._templates,
-				self._naming_convention,
-				self._users.my_name
-			)
+			handler.new_project(self._job, self._templates,
+				self._naming_convention, self._users.my_name)
 		elif context_action == 'Assign Files':
-			handler.assign_files(
-				self._selected_dwg_nums,
-				self._job,
-				self._templates,
-				self._naming_convention,
-				self._users.my_name
-			)
+			handler.assign_files(self._selected_dwg_nums, self._job,
+				self._templates, self._naming_convention, self._users.my_name)
 		elif context_action == 'Add Files':
-			handler.add_files(
-				self._selected_dwg_nums,
-				self._job,
-				self._templates,
-				self._naming_convention
-			)
+			handler.add_files(self._selected_dwg_nums, self._job, 
+				self._templates, self._naming_convention)
 		elif context_action == 'Drawing No.':
-			handler.drawing_num(
-				self._selected_dwg_nums,
-				self._projects,
-				self._naming_convention
-			)
+			handler.drawing_num(self._selected_dwg_nums, self._projects,
+				self._naming_convention)
 		elif context_action == 'Copy/Paste':
-			handler.copy_paste(
-				self._selected_dwg_nums,
-				self._job
-			)
+			handler.copy_paste(self._selected_dwg_nums,	self._job)
 		elif context_action == 'Delete':
-			handler.delete(
-				self._selected_dwg_nums,
-				self._projects
-			)
+			handler.delete(self._selected_dwg_nums,	self._projects)
 		elif context_action == 'Add Note':
-			handler.note(
-				self._selected_dwg_nums, 
-				self._projects, 
-				self._users.my_name
-			)
+			handler.note(self._selected_dwg_nums, self._projects, 
+			self._users.my_name)
 		self._update_projects()
 
 	def save(self, on_close=False):
@@ -396,8 +349,9 @@ class ShortcutActions(object):
 			Likely a network issue
 
 		"""
+		self._users.log('requesting %s probe locations' % self._job_num)
 		send_email(self._to, self._cc, self._subject, self._body, True)
-		self._users.log('requested %s probe locations' % self._job_num)
+
 
 	def open_path(self, path):
 		"""
