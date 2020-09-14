@@ -292,6 +292,7 @@ class CompleteJobRequest(object):
 		self._lock = lock
 		self._retain_ownership = False if self._job is None else True
 		self.dwg_count = None
+		self.projects = []
 
 	def approved(self):
 		"""Evaluate the complete job request.
@@ -310,7 +311,8 @@ class CompleteJobRequest(object):
 		DestinationError
 
 		"""
-		dwg_nums = self._get_dwg_nums()
+		self._verify_job()
+		dwg_nums = JobIO.drawing_nums_from_job(self._job)
 		self.dwg_count = len(dwg_nums)
 		pdf_dir = Extract.issued_prints_folder(self._job_num)
 		self._bulk_pdf_transfer(pdf_dir)
@@ -323,22 +325,14 @@ class CompleteJobRequest(object):
 			if not self._retain_ownership:
 				self._lock.unlock()
 
-	def _get_dwg_nums(self):
-		"""Returns the list of drawing numbers found in the active job.
-		
-		Raises
-		------
-		JobInUseError
-		IOError
-		EOFError
-
-		"""
+	def _verify_job(self):
+		"""Confirm that an active job is acquired."""
 		if self._job is None:
 			try:
 				self._job, self._lock = JobIO.job_and_lock(self._job_num)
 			except (JobInUseError, IOError, EOFError):
 				raise
-		return JobIO.drawing_nums_from_job(self._job)
+		self.projects = self._job.projects
 
 	def _incomplete_project_count(self, dwg_nums):
 		"""Count the number of incomplete Project objects.

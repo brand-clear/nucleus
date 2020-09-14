@@ -78,9 +78,8 @@ class Job(object):
 			In accordance with WorkOrderConstants.STATUS_LIST, optional
 
 		"""
-		self.projects[alias_num] = Project(
-			alias_num, work_instructions, owner, due_date, status
-		)
+		self.projects[alias_num] = Project(alias_num, work_instructions, owner, 
+			due_date, status)
 
 
 class Project(object):

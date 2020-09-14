@@ -226,10 +226,8 @@ class Nucleus(QtGui.QMainWindow):
 
 		except KeyError:
 			# If 'Home' interface is active.
-			self.status.showMessage(
-				'Cannot complete a job in this context.',
-				2000
-			)
+			self.status.showMessage('Cannot complete a job in this context.',
+				2000)
 
 	def process_complete_job_request(self, job_num, job=None, lock=None):
 		"""Process a request to remove job files from ``Nucleus``.
@@ -253,12 +251,8 @@ class Nucleus(QtGui.QMainWindow):
 		"""
 		self.app_data.users.log(
 			'initiating a complete job request for %s' % job_num)
-		request = CompleteJobRequest(
-			job_num, 
-			self.app_data.users.supervisor_email_addresses,
-			job,
-			lock
-		)
+		request = CompleteJobRequest(job_num, 
+			self.app_data.users.supervisor_email_addresses, job, lock)
 		try:
 			if not request.approved():
 				self.app_data.users.log(
@@ -271,15 +265,17 @@ class Nucleus(QtGui.QMainWindow):
 		else:
 			self.status.showMessage('Updating your jobs...')
 			self.desk.refresh_home()
-			try:
-				self.app_data.users.log('%s completed, due by %s' % 
-					(job_num, JobIO.job_due_date(job)))
-			except ValueError:
-				self.app_data.users.log(
-					'%s completed, no due date reference' % job_num)
 
+			# Log data to user file
+			self.app_data.users.log('%s completed, due by %s' % (job_num, 
+				JobIO.job_due_date(job)))
 			self.app_data.users.log('%s drawing count: %d' % 
 				(job_num, request.dwg_count))
+			for project in request.projects:
+				self.app_data.users.log('project:%s,%s' % (
+					request.projects[project].alias_num, 
+					request.projects[project].owner))
+
 			self.status.showMessage('%s closed successfully.' % job_num)
 			return True
 
