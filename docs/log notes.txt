@@ -1,9 +1,0 @@
-logging
--------
-mcclbra ~ logged in
-mcclbra ~ logged out
-mcclbra ~ set 130739 workspace
-mcclbra ~ requested 130739 probe locations
-mcclbra ~ viewed 130739 user agreement
-mcclbra ~ 130739 completed, due by 09/30/2019
-mcclbra ~ 130739 drawing count: 2
