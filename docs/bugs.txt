@@ -1,5 +1,0 @@
-2020.01 Initial Release Bugs
-----------------------------
-check - can't complete a job if the issued prints folder doesn't exist ~ DestinationError
-check - drawing number doesn't change when assigning files to project ~ TypeError
-check - change dock window fixed width
